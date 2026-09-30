@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LingoBridge AI - Offline Edition</title>
+    <style>
+        :root { --primary: #10b981; --hover: #059669; --bg: #f8fafc; --surface: #ffffff; --text: #0f172a; --border: #cbd5e1; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.5; }
+        .container { max-width: 900px; margin: auto; background: var(--surface); padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid var(--border); padding-bottom: 20px; }
+        .header h1 { margin: 0 0 10px 0; color: var(--primary); }
+        .api-config { background: #d1fae5; padding: 15px; border-radius: 8px; margin-bottom: 25px; border: 1px solid #a7f3d0; display: flex; gap: 10px; align-items: center; }
+        .api-config input { flex-grow: 1; padding: 8px 12px; border: 1px solid #6ee7b7; border-radius: 6px; }
+        .grid-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        select, input[type="text"] { width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        textarea { width: 100%; height: 150px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; margin-bottom: 15px; resize: vertical; box-sizing: border-box; }
+        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.2s; font-size: 15px; }
+        button:hover { background: var(--hover); }
+        button:disabled { opacity: 0.7; cursor: not-allowed; }
+        .btn-full { width: 100%; font-size: 16px; padding: 15px; }
+        .action-group { display: flex; gap: 10px; margin-top: -5px; }
+        #outputText { background: #f1f5f9; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>🌐 LingoBridge AI (Offline)</h1>
+        <p>Powered locally by Ollama — No Internet Required</p>
+    </div>
+
+    <div class="api-config">
+        <span>🤖</span>
+        <input type="text" id="modelName" placeholder="Ollama Model Name (e.g., llama3, qwen2)" value="llama3">
+    </div>
+    
+    <div class="grid-controls">
+        <select id="sourceLang">
+            <option value="English">English</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Odia">Odia</option>
+        </select>
+        
+        <select id="targetLang">
+            <option value="Hindi">🇮🇳 Translate to: Hindi</option>
+            <option value="English">🇬🇧 Translate to: English</option>
+            <option value="Odia">🇮🇳 Translate to: Odia</option>
+        </select>
+
+        <select id="tone">
+            <option value="Professional">👔 Professional Tone</option>
+            <option value="Casual">😊 Casual Tone</option>
+            <option value="Formal">📜 Formal Tone</option>
+        </select>
+
+        <input type="text" id="context" placeholder="Context (e.g., Medical, IT, Legal)">
+    </div>
+
+    <textarea id="inputText" placeholder="Enter text to translate here..."></textarea>
+    
+    <button id="translateBtn" class="btn-full" onclick="translateText()">Translate Offline 🚀</button>
+
+    <h3 style="margin-top: 25px;">Translation Result:</h3>
+    <textarea id="outputText" readonly placeholder="Translated text will appear here..."></textarea>
+    
+    <div class="action-group">
+        <button onclick="copyText()">📋 Copy</button>
+        <button onclick="downloadText()">⬇️ Download .txt</button>
+    </div>
+</div>
+
+<script>
+    async function translateText() {
+        const model = document.getElementById("modelName").value;
+        const text = document.getElementById("inputText").value;
+        const sourceLang = document.getElementById("sourceLang").value;
+        const targetLang = document.getElementById("targetLang").value;
+        const tone = document.getElementById("tone").value;
+        const context = document.getElementById("context").value;
+        const outputText = document.getElementById("outputText");
+        const btn = document.getElementById("translateBtn");
+
+        if (!text.trim()) return alert("Please enter text to translate.");
+
+        btn.innerText = "Processing Locally... ⏳";
+        btn.disabled = true;
+        outputText.value = "";
+
+        const prompt = `Act as an expert multilingual translator. 
+        Translate from ${sourceLang} to ${targetLang}.
+        Tone: ${tone}. Context: ${context || 'None'}.
+        Output ONLY the translated text without quotes or explanations.
+        
+        Text: ${text}`;
+
+        try {
+            // Connecting to local Ollama API
+            const response = await fetch("http://localhost:11434/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    model: model,
+                    prompt: prompt,
+                    stream: false
+                })
+            });
+
+            const data = await response.json();
+            
+            if (response.ok) {
+                outputText.value = data.response.trim();
+            } else {
+                outputText.value = `Error: Please ensure Ollama is running and the model '${model}' is downloaded.`;
+            }
+        } catch (error) {
+            outputText.value = "Failed to connect to local AI. Ensure Ollama is running and CORS is enabled.";
+        }
+
+        btn.innerText = "Translate Offline 🚀";
+        btn.disabled = false;
+    }
+
+    function copyText() {
+        document.getElementById("outputText").select();
+        document.execCommand("copy");
+    }
+
+    function downloadText() {
+        const text = document.getElementById("outputText").value;
+        if (!text) return;
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+        a.download = "LingoBridge_Offline.txt";
+        a.click();
+    }
+</script>
+
+</body>
+</html>
